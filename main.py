@@ -1648,7 +1648,7 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             self.employees_data = pd.DataFrame()
 
     @staticmethod
-    def filter_by_text(self, data, search_text):
+    def filter_by_text(data, search_text):
         if not search_text:
             return data
         return data[
@@ -1662,19 +1662,19 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         ]
 
     @staticmethod
-    def filter_by_department(self, data, department_id):
+    def filter_by_department(data, department_id):
         if not department_id:
             return data
         return data[data["department_id"] == department_id]
 
     @staticmethod
-    def filter_by_job_title(self, data, job_title_id):
+    def filter_by_job_title(data, job_title_id):
         if not job_title_id:
             return data
         return data[data["job_title_id"] == job_title_id]
     
     @staticmethod
-    def filter_by_role(self, data, role_fard, role_masoul):
+    def filter_by_role(data, role_fard, role_masoul):
         if role_fard and not role_masoul:
             return data[data["role"] == "فرد"]
         elif role_masoul and not role_fard:
