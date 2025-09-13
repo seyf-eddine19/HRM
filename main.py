@@ -6,7 +6,12 @@
 #      Python         :   3.12.10
 
 
-import os, sys, shutil, shlex, sqlite3
+import os
+import sys
+import shlex
+import shutil
+import subprocess
+import sqlite3
 import logging
 import pandas as pd
 from datetime import datetime
@@ -1116,10 +1121,10 @@ class EditEmployeeDialog(Ui_EditEmployeeDialog, QtWidgets.QDialog):
             if sys.platform.startswith("win"):  # Windows
                 os.startfile(filePath)
             elif sys.platform == "darwin":  # macOS
-                os.system("open " + shlex.quote(filePath))
+                subprocess.run(["open", filePath])
             else:  # Linux
-                os.system("xdg-open " + shlex.quote(filePath))
-
+                subprocess.run(["xdg-open", filePath])
+            
     def open_doc(self, path):
         if os.path.exists(path):
             QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(path))
