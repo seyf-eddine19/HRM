@@ -1693,9 +1693,8 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
                 data=[emp_id],
                 fetch=True
             )
-            if isinstance(visas, pd.DataFrame) and not visas.empty:
-                if any(v_id in selected_visa_ids for v_id in visas["visa_type_id"]):
-                    valid_ids.add(emp_id)
+            if isinstance(visas, pd.DataFrame) and not visas.empty and any(v_id in selected_visa_ids for v_id in visas["visa_type_id"]):
+                valid_ids.add(emp_id)
 
         return data[data["id"].isin(valid_ids)]
 
