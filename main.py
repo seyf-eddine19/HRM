@@ -1647,6 +1647,58 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(self, "خطأ", f"فشل جلب بيانات الموظفين:\n{self.employees_data}")
             self.employees_data = pd.DataFrame()
 
+    def filter_by_text(self, data, search_text):
+        if not search_text:
+            return data
+        return data[
+            data.apply(
+                lambda row: any(
+                    search_text in str(row[col]).lower()
+                    for col in ["general_number", "name_ar", "name_en", "national_id", "phone"]
+                ),
+                axis=1
+            )
+        ]
+
+    def filter_by_department(self, data, department_id):
+        if not department_id:
+            return data
+        return data[data["department_id"] == department_id]
+
+    def filter_by_job_title(self, data, job_title_id):
+        if not job_title_id:
+            return data
+        return data[data["job_title_id"] == job_title_id]
+
+    def filter_by_role(self, data, role_fard, role_masoul):
+        if role_fard and not role_masoul:
+            return data[data["role"] == "فرد"]
+        elif role_masoul and not role_fard:
+            return data[data["role"] == "مسؤول"]
+        return data
+
+    def filter_by_visa(self, data, selected_visa_ids):
+        if not selected_visa_ids:
+            return data
+
+        valid_ids = set()
+        for emp_id in data["id"]:
+            visas = self.db_conn.execute_query(
+                """
+                SELECT v.visa_type_id
+                FROM visas v
+                JOIN passports p ON v.passport_id = p.id
+                WHERE p.employee_id = ?
+                """,
+                data=[emp_id],
+                fetch=True
+            )
+            if isinstance(visas, pd.DataFrame) and not visas.empty:
+                if any(v_id in selected_visa_ids for v_id in visas["visa_type_id"]):
+                    valid_ids.add(emp_id)
+
+        return data[data["id"].isin(valid_ids)]
+
     def search_employees(self):
         self.SearchButton.setEnabled(False)
         self.NextPageButton.setEnabled(False)
@@ -1660,58 +1712,16 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         job_title_id = self.JopEntry.currentData()
         role_fard = self.rolecheckBox1.isChecked()
         role_masoul = self.rolecheckBox2.isChecked()
+        selected_visa_ids = self.VisaTypeEntry.get_selected_ids()
 
         filtered_data = self.employees_data.copy()
 
-        # ======== البحث النصي ========
-        if search_text:
-            filtered_data = filtered_data[
-                filtered_data.apply(
-                    lambda row: any(
-                        search_text in str(row[col]).lower()
-                        for col in ["general_number", "name_ar", "name_en", "national_id", "phone"]
-                    ),
-                    axis=1
-                )
-            ]
+        filtered_data = self.filter_by_text(filtered_data, search_text)
+        filtered_data = self.filter_by_department(filtered_data, department_id)
+        filtered_data = self.filter_by_job_title(filtered_data, job_title_id)
+        filtered_data = self.filter_by_role(filtered_data, role_fard, role_masoul)
+        filtered_data = self.filter_by_visa(filtered_data, selected_visa_ids)
 
-        # ======== فلترة القسم ========
-        if department_id:
-            filtered_data = filtered_data[filtered_data["department_id"] == department_id]
-
-        # ======== فلترة المسمى الوظيفي ========
-        if job_title_id:
-            filtered_data = filtered_data[filtered_data["job_title_id"] == job_title_id]
-
-        # ======== فلترة الدور ========
-        if role_fard and not role_masoul:
-            filtered_data = filtered_data[filtered_data["role"] == "فرد"]
-        elif role_masoul and not role_fard:
-            filtered_data = filtered_data[filtered_data["role"] == "مسؤول"]
-
-        # ======== فلترة الجوازات والتأشيرات ========
-        selected_visa_ids = self.VisaTypeEntry.get_selected_ids()
-        if selected_visa_ids:
-            valid_ids = set()
-            for emp_id in filtered_data["id"]:
-                visas = self.db_conn.execute_query(
-                    """
-                    SELECT v.visa_type_id
-                    FROM visas v
-                    JOIN passports p ON v.passport_id = p.id
-                    WHERE p.employee_id = ?
-                    """,
-                    data=[emp_id],
-                    fetch=True
-                )
-
-                if isinstance(visas, pd.DataFrame) and not visas.empty:
-                    if any(v_id in selected_visa_ids for v_id in visas["visa_type_id"]):
-                        valid_ids.add(emp_id)
-
-            filtered_data = filtered_data[filtered_data["id"].isin(valid_ids)]
-
-        # ======== التحديث النهائي ========
         self.employees_data_filtered = filtered_data.reset_index(drop=True)
         self.current_page = 1
         self.is_filtered = True
