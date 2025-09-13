@@ -1654,67 +1654,69 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
 
         if self.employees_data is None or self.employees_data.empty:
             return
-    
+
         search_text = self.SearchEntry.text().strip().lower()
-        department = self.DepartmentEntry.currentText().strip()
-        job_title = self.JopEntry.currentText().strip()
+        department_id = self.DepartmentEntry.currentData()
+        job_title_id = self.JopEntry.currentData()
         role_fard = self.rolecheckBox1.isChecked()
         role_masoul = self.rolecheckBox2.isChecked()
-    
+
         filtered_data = self.employees_data.copy()
-    
+
         # ======== البحث النصي ========
         if search_text:
             filtered_data = filtered_data[
                 filtered_data.apply(
                     lambda row: any(
                         search_text in str(row[col]).lower()
-                        for col in ['general_number', 'name_ar', 'name_en', 'national_id', 'phone']
+                        for col in ["general_number", "name_ar", "name_en", "national_id", "phone"]
                     ),
                     axis=1
                 )
             ]
-    
-        # ======== فلترة القسم والمسمى الوظيفي ========
-        if department:
-            filtered_data = filtered_data[filtered_data['department'] == department]
-    
-        if job_title:
-            filtered_data = filtered_data[filtered_data['job_title'] == job_title]
-    
+
+        # ======== فلترة القسم ========
+        if department_id:
+            filtered_data = filtered_data[filtered_data["department_id"] == department_id]
+
+        # ======== فلترة المسمى الوظيفي ========
+        if job_title_id:
+            filtered_data = filtered_data[filtered_data["job_title_id"] == job_title_id]
+
         # ======== فلترة الدور ========
         if role_fard and not role_masoul:
-            filtered_data = filtered_data[filtered_data['role'] == "فرد"]
+            filtered_data = filtered_data[filtered_data["role"] == "فرد"]
         elif role_masoul and not role_fard:
-            filtered_data = filtered_data[filtered_data['role'] == "مسؤول"]
-    
+            filtered_data = filtered_data[filtered_data["role"] == "مسؤول"]
+
         # ======== فلترة الجوازات والتأشيرات ========
         selected_visa_ids = self.VisaTypeEntry.get_selected_ids()
         if selected_visa_ids:
             valid_ids = set()
-            for emp_id in filtered_data['id']:
-                visas = self.db_conn.execute_query("""
+            for emp_id in filtered_data["id"]:
+                visas = self.db_conn.execute_query(
+                    """
                     SELECT v.visa_type_id
                     FROM visas v
-                    LEFT JOIN passports p ON v.passport_id = p.id
+                    JOIN passports p ON v.passport_id = p.id
                     WHERE p.employee_id = ?
-                """, data=[emp_id], fetch=True)
-    
-                if visas.empty:
-                    continue
-    
-                if any(v_id in selected_visa_ids for v_id in visas['visa_type_id']):
-                    valid_ids.add(emp_id)
+                    """,
+                    data=[emp_id],
+                    fetch=True
+                )
 
-            filtered_data = filtered_data[filtered_data['id'].isin(valid_ids)]
-            
-    
+                if isinstance(visas, pd.DataFrame) and not visas.empty:
+                    if any(v_id in selected_visa_ids for v_id in visas["visa_type_id"]):
+                        valid_ids.add(emp_id)
+
+            filtered_data = filtered_data[filtered_data["id"].isin(valid_ids)]
+
         # ======== التحديث النهائي ========
         self.employees_data_filtered = filtered_data.reset_index(drop=True)
         self.current_page = 1
         self.is_filtered = True
         self.render_employees(filtered=True)
-    
+
         self.SearchButton.setEnabled(True)
         self.NextPageButton.setEnabled(True)
         self.PrevPageButton.setEnabled(True)
@@ -2252,21 +2254,6 @@ if __name__ == '__main__':
             f'Hi, you can\'t access this app, please contact the developer\n\n{e}'
         )
         raise e
-
-# pyuic5 ui/MainWindow.ui -o MainWindow.py
-# pyuic5 ui/EditEmployeePage.ui -o EditEmployeePage.py
-# pyrcc5 ui/img/img.qrc -o img_rc.py
-# pyinstaller --windowed --icon=ui\img\logo.ico --add-data="ui\img\logo.png;." --name "HRM" main.py
-
-
-
-
-
-
-
-
-
-
 
 # pyuic5 ui/MainWindow.ui -o MainWindow.py
 # pyuic5 ui/EditEmployeePage.ui -o EditEmployeePage.py
