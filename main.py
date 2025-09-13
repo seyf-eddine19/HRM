@@ -38,142 +38,13 @@ class DB_conn:
             ],
             'visas': [
                 'id', 'passport_id', 'visa_number', 'visa_type_id', 'issue_date', 'expiry_date',
-                'doc_path' 
+                'doc_path'
             ]
         }
 
         if not os.path.exists(self.database):
             os.makedirs(os.path.dirname(self.database), exist_ok=True)
             self.init_db()
-          
-    def init_db(self):
-        try:
-            cnx = sqlite3.connect(self.database)
-            cnx.execute("PRAGMA foreign_keys = ON")  # تفعيل المفاتيح الأجنبية
-            cur = cnx.cursor()
-            
-            # إنشاء جدول مستخدم واحد
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS user (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT,
-                password TEXT
-            )
-            """)
-            
-            # جدول الأقسام
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS department_types (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT
-            )
-            """)
-
-            # جدول الوظائف
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS job_titles (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT
-            )
-            """)
-
-            # جدول أنواع الجوازات
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS passport_types (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT
-            )
-            """)
-
-            # جدول أنواع التأشيرات
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS visa_types (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT
-            )
-            """)
-
-            # جدول الموظفين
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS employees (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                general_number INTEGER UNIQUE,
-                name_ar TEXT,
-                name_en TEXT,
-                birth_date TEXT,
-                national_id TEXT UNIQUE,
-                id_issue_date TEXT,
-                id_expiry_date TEXT,
-                department_id INTEGER,
-                job_title_id INTEGER,
-                phone TEXT,
-                iban_number TEXT,
-                role TEXT,
-                photo_path TEXT,
-                docs_path TEXT,
-                FOREIGN KEY(department_id) REFERENCES department_types(id) ON DELETE SET NULL,
-                FOREIGN KEY(job_title_id) REFERENCES job_titles(id) ON DELETE SET NULL
-            )
-            """)
-
-            # جدول الجوازات
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS passports (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                employee_id INTEGER,
-                passport_number TEXT UNIQUE,
-                passport_type_id INTEGER,
-                issue_date TEXT,
-                expiry_date TEXT,
-                issue_authority TEXT,
-                delivered_by TEXT,
-                received_by TEXT,
-                received_at DATETIME,    
-                custodian TEXT,
-                doc_path TEXT,
-                FOREIGN KEY(employee_id) REFERENCES employees(id) ON DELETE CASCADE,
-                FOREIGN KEY(passport_type_id) REFERENCES passport_types(id) ON DELETE SET NULL
-            )
-            """)
-
-            # جدول التأشيرات
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS visas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                passport_id INTEGER,
-                visa_number TEXT UNIQUE,
-                visa_type_id INTEGER,
-                issue_date TEXT,
-                expiry_date TEXT,
-                doc_path TEXT,
-                FOREIGN KEY(passport_id) REFERENCES passports(id) ON DELETE CASCADE,
-                FOREIGN KEY(visa_type_id) REFERENCES visa_types(id) ON DELETE SET NULL
-            )
-            """)
-
-            # جدول الاستلام والتسليم
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS handover (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                passport_id INTEGER,
-                employee_id INTEGER,
-                action_type TEXT,
-                action_at DATETIME,
-                FOREIGN KEY(passport_id) REFERENCES passports(id) ON DELETE CASCADE,
-                FOREIGN KEY(employee_id) REFERENCES employees(id) ON DELETE CASCADE
-            )
-            """)
-
-            cnx.commit()
-            cur.execute("INSERT INTO user (username, password, id) VALUES (?, ?, ?)", ("admin", "12345", "1"))
-            cnx.commit()
-            return "قاعدة البيانات تم إنشاؤها بنجاح"
-
-        except Exception as e:
-            return f"حدث خطأ أثناء إنشاء قاعدة البيانات: {str(e)}"
-        finally:
-            cur.close()
-            cnx.close()
 
     def _get_connection(self):
         cnx = sqlite3.connect(self.database)
@@ -188,13 +59,14 @@ class DB_conn:
                 cur.execute(query, data)
             else:
                 cur.execute(query)
+
             if fetch or query.strip().lower().startswith('select'):
                 df = pd.read_sql_query(query, cnx, params=data)
                 return df
+
             cnx.commit()
             if return_id:
-                return cur.lastrowid  # إرجاع الـ ID
-            
+                return cur.lastrowid
             return "تمت العملية بنجاح"
         except Exception as err:
             return f"حدث خطأ: {str(err)}"
@@ -203,34 +75,40 @@ class DB_conn:
             cnx.close()
 
     def insert(self, table, data):
-        columns = self.switch_cols.get(table)
-        if not columns:
+        if table not in self.switch_cols:
             return f"جدول {table} غير موجود"
-        placeholders = ', '.join(['?' for _ in columns[1:]])  # استبعاد id
-        query = f'INSERT INTO {table} ({",".join(columns[1:])}) VALUES ({placeholders})'
+        cols = self.switch_cols[table][1:]  # بدون id
+        placeholders = ', '.join(['?' for _ in cols])
+        query = f'INSERT INTO "{table}" ({",".join(cols)}) VALUES ({placeholders})'
         return self.execute_query(query, data, return_id=True)
 
     def update(self, table, data, ids):
-        columns = self.switch_cols.get(table)
-        if not columns:
+        if table not in self.switch_cols:
             return f"جدول {table} غير موجود"
-        set_clause = ', '.join([f'{col}=?' for col in columns[1:]])  # استبعاد id
-        query = f'UPDATE {table} SET {set_clause} WHERE id=?'
-        vals = data + [ids[0]]  # ids[0] يجب أن يحتوي على الـ id
+        cols = self.switch_cols[table][1:]  # بدون id
+        set_clause = ', '.join([f'{col}=?' for col in cols])
+        query = f'UPDATE "{table}" SET {set_clause} WHERE id=?'
+        vals = data + [ids[0]]
         return self.execute_query(query, vals)
 
     def select(self, table):
-        query = f'SELECT * FROM {table}'
+        if table not in self.switch_cols:
+            return f"جدول {table} غير موجود"
+        query = f'SELECT * FROM "{table}"'
         return self.execute_query(query, fetch=True)
 
     def delete(self, table, ids):
-        query = f'DELETE FROM {table} WHERE id=?'
+        if table not in self.switch_cols:
+            return f"جدول {table} غير موجود"
+        query = f'DELETE FROM "{table}" WHERE id=?'
         return self.execute_query(query, ids)
 
     def delete_all(self, table):
-        query = f'DELETE FROM {table}'
+        if table not in self.switch_cols:
+            return f"جدول {table} غير موجود"
+        query = f'DELETE FROM "{table}"'
         return self.execute_query(query)
-    
+
 
 class ManageTypesDialog(QtWidgets.QDialog):
     def __init__(self, db_conn, table_name, parent=None):

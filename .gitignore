@@ -26,6 +26,7 @@ dist/
 
 # Databases / test dbs
 db/
+documents/
 ui/
 *.db
 *.sqlite3
