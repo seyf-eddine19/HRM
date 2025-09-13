@@ -1116,15 +1116,25 @@ class EditEmployeeDialog(Ui_EditEmployeeDialog, QtWidgets.QDialog):
     def open_document(self):
         """فتح المستند المحدد بالبرنامج الافتراضي"""
         selected = self.documentsTree.currentItem()
-        if selected:
-            filePath = os.path.join(self.docs_folder, selected.text())
+        if not selected:
+            return
+
+        file_path = os.path.join(self.docs_folder, selected.text())
+
+        if not os.path.exists(file_path):
+            QtWidgets.QMessageBox.warning(self, "خطأ", f"الملف غير موجود:\n{file_path}")
+            return
+
+        try:
             if sys.platform.startswith("win"):  # Windows
-                os.startfile(filePath)
+                os.startfile(file_path)
             elif sys.platform == "darwin":  # macOS
-                subprocess.run(["open", filePath])
+                subprocess.run(["open", file_path], check=False)
             else:  # Linux
-                subprocess.run(["xdg-open", filePath])
-            
+                subprocess.run(["xdg-open", file_path], check=False)
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "خطأ", f"تعذر فتح الملف:\n{e}")
+
     def open_doc(self, path):
         if os.path.exists(path):
             QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(path))
