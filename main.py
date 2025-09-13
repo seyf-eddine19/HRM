@@ -1647,6 +1647,7 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(self, "خطأ", f"فشل جلب بيانات الموظفين:\n{self.employees_data}")
             self.employees_data = pd.DataFrame()
 
+    @staticmethod
     def filter_by_text(self, data, search_text):
         if not search_text:
             return data
@@ -1660,16 +1661,19 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             )
         ]
 
+    @staticmethod
     def filter_by_department(self, data, department_id):
         if not department_id:
             return data
         return data[data["department_id"] == department_id]
 
+    @staticmethod
     def filter_by_job_title(self, data, job_title_id):
         if not job_title_id:
             return data
         return data[data["job_title_id"] == job_title_id]
-
+    
+    @staticmethod
     def filter_by_role(self, data, role_fard, role_masoul):
         if role_fard and not role_masoul:
             return data[data["role"] == "فرد"]
