@@ -1113,8 +1113,22 @@ class EditEmployeeDialog(Ui_EditEmployeeDialog, QtWidgets.QDialog):
                 os.remove(filePath)
             self.load_documents()
 
+    def open_doc(self, path):
+        if os.path.exists(path):
+            QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(path))
+        else:
+            QtWidgets.QMessageBox.warning(self, "خطأ", f"الملف غير موجود:\n{path}")
+
+    def _is_safe_path(self, base_dir: str, target_path: str) -> bool:
+        try:
+            base_abs = os.path.abspath(base_dir)
+            target_abs = os.path.abspath(target_path)
+        except Exception:
+            return False
+        return target_abs == base_abs or target_abs.startswith(base_abs + os.sep)
+
     def open_document(self):
-        """فتح المستند المحدد بالبرنامج الافتراضي"""
+        """فتح المستند المحدد بالبرنامج الافتراضي (Qt method — آمنة من ناحية static analysis)"""
         selected = self.documentsTree.currentItem()
         if not selected:
             return
@@ -1125,23 +1139,14 @@ class EditEmployeeDialog(Ui_EditEmployeeDialog, QtWidgets.QDialog):
             QtWidgets.QMessageBox.warning(self, "خطأ", f"الملف غير موجود:\n{file_path}")
             return
 
-        try:
-            if sys.platform.startswith("win"):  # Windows
-                os.startfile(file_path)
-            elif sys.platform == "darwin":  # macOS
-                opener = shutil.which("open")
-                subprocess.run([opener, file_path], check=False)
-            else:  # Linux
-                opener = shutil.which("xdg-open")
-                subprocess.run([opener, file_path], check=False)
-        except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "خطأ", f"تعذر فتح الملف:\n{e}")
+        if not self._is_safe_path(self.docs_folder, file_path):
+            QtWidgets.QMessageBox.warning(self, "خطأ", "الوصول إلى هذا الملف غير مسموح.")
+            return
 
-    def open_doc(self, path):
-        if os.path.exists(path):
-            QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(path))
-        else:
-            QtWidgets.QMessageBox.warning(self, "خطأ", f"الملف غير موجود:\n{path}")
+        # Use Qt to open the file with the system default application
+        opened = QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(file_path))
+        if not opened:
+            QtWidgets.QMessageBox.critical(self, "خطأ", "تعذر فتح الملف بواسطة النظام.")
 
 
 class CustodyViewer:
