@@ -1129,9 +1129,11 @@ class EditEmployeeDialog(Ui_EditEmployeeDialog, QtWidgets.QDialog):
             if sys.platform.startswith("win"):  # Windows
                 os.startfile(file_path)
             elif sys.platform == "darwin":  # macOS
-                subprocess.run(["open", file_path], check=False)
+                opener = shutil.which("open")
+                subprocess.run([opener, file_path], check=False)
             else:  # Linux
-                subprocess.run(["xdg-open", file_path], check=False)
+                opener = shutil.which("xdg-open")
+                subprocess.run([opener, file_path], check=False)
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "خطأ", f"تعذر فتح الملف:\n{e}")
 
